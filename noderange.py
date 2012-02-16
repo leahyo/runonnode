@@ -9,6 +9,9 @@ def expand(range):
     compute[1-3], return a list of nodes
     """
     nodes = []
+    if range is None or len(range) < 1:
+        print "Invalid range, empty"
+        return []
 
     tidyrange = string.replace(range, " ", "").strip()
 

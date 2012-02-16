@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+
+import argparse
+import getpass
+from noderange import expand
+import nodeconnection
+import os
+import paramiko
+from paramiko import SSHException
+import sys
+
+
+def copytonodes(nodespec, src_file=None, dest_file=None, dshbak=False,
+                verbose=False, user=None, password=None):
+    if src_file is None or dest_file is None:
+        print "copytonodes, src_file or dest_file is None"
+        sys.exit(1)
+
+    fd = os.open(src_file, os.O_RDONLY)
+    file_txt = os.read(fd, 1024)
+    cmd = "/bin/cat << EOF > " + dest_file + " " + file_txt + "\nEOF"
+    nodeconnection.runonnodes(nodespec, cmd, dshbak, verbose, user)
+    cmd = "/bin/chmod +x " + dest_file
+    nodeconnection.runonnodes(nodespec, cmd, dshbak, verbose, user)
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Run a command on a set of nodes")
+    parser.add_argument('-s', action="store", dest="src_file")
+    parser.add_argument('-d', action="store", dest="dest_file")
+    parser.add_argument('-t', action="store_true", default=False)
+    parser.add_argument('-v', action="store_true", default=False)
+    parser.add_argument('-w', action="store", dest="where")
+    parser.add_argument('-u', action="store", dest="user")
+    parser.add_argument('-p', action="store", dest="password")
+    args = parser.parse_args(sys.argv[1:])
+
+    copytonodes(args.where, args.src_file, args.dest_file,
+                dshbak=args.t, verbose=args.v,
+                user=args.user, password=args.password)
+
+if __name__ == "__main__":
+    main()
