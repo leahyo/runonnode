@@ -20,7 +20,8 @@ class NodeConnection(object):
             self._user = user
         else:
             self._user = getpass.getuser()
-        NodeConnection._password = password
+        if not password is None:
+            NodeConnection._password = password
 
     def connect(self, verbose=False, port=22):
         if verbose:
@@ -44,20 +45,29 @@ class NodeConnection(object):
         	raise Exception("exec_command: not connected")
         self.stdin, self.stdout, self.stderr = self.ssh.exec_command(cmd)
 
-    def print_output(self, leader=''):
+    def print_output(self, leader='', output=False):
         #FIXME: dshbak (leader) mode nott yet implemented correctly due to
         #       readline() returning a character at a time rather than a line.
+        outbuf = []
         if not self.stdin or not self.stdout or not self.stderr:
         	raise Exception("print_output: not connected")
         for line in self.stdout.readlines():
-            sys.stdout.write(line)
+            if output is True:
+                outbuf.append(line)
+            else:
+                sys.stdout.write(line)
         sys.stdout.flush()
         for line in self.stderr.readlines():
-        	sys.stderr.write(line)
+            if output is True:
+                outbuf.append(line)
+            else:
+                sys.stderr.write(line)
         sys.stderr.flush()
+        if output:
+            return outbuf
 
 def runonnodes(nodespec, cmd, dshbak=False, verbose=False,
-               user=None, password=None):
+               user=None, password=None, output=False):
     nodes = expand(nodespec)
 
     if len(nodes) == 0:
@@ -70,7 +80,8 @@ def runonnodes(nodespec, cmd, dshbak=False, verbose=False,
         nc.exec_command(cmd)
         if not dshbak:
             print "--------------- %s ---------------" % (node)
-            nc.print_output()
+            outbuf = nc.print_output(output=output)
         else:
-            nc.print_output(str(node) + ": ")
-
+            outbuf = nc.print_output(str(node) + ": ", output=output)
+    if output == True:
+        return outbuf
