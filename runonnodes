@@ -15,6 +15,7 @@ def main():
         description="Run a command on a set of nodes")
     parser.add_argument('-t', action="store_true", default=False)
     parser.add_argument('-v', action="store_true", default=False)
+    parser.add_argument('-s', action="store_true", default=False)
     parser.add_argument('-w', action="store", dest="where")
     parser.add_argument('-u', action="store", dest="user")
     parser.add_argument('-p', action="store", dest="password")
@@ -23,7 +24,8 @@ def main():
 
     nodeconnection.runonnodes(args.where, " ".join(args.command),
                               dshbak=args.t, verbose=args.v,
-                              user=args.user, password=args.password)
+                              user=args.user, password=args.password,
+                              sudo=args.s)
 
 if __name__ == "__main__":
     main()

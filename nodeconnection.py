@@ -3,9 +3,12 @@
 import argparse
 import getpass
 from noderange import expand
+import io
 import os
 import paramiko
 from paramiko import SSHException
+import string
+import select
 import sys
 
 class NodeConnection(object):
@@ -45,6 +48,29 @@ class NodeConnection(object):
         	raise Exception("exec_command: not connected")
         self.stdin, self.stdout, self.stderr = self.ssh.exec_command(cmd)
 
+    def exec_sudo_command(self, cmd):
+        self.stdout = io.StringIO()
+        self.stdin = io.StringIO()
+        self.stderr = io.StringIO()
+        chan = self.ssh.get_transport().open_session()
+        chan.get_pty()
+        chan.exec_command(cmd)
+        prompt = chan.recv(1024)
+        if string.find(prompt, "password") != -1:
+            if NodeConnection._password is None:
+                NodeConnection._password = getpass.getpass(
+                                    "Sudo access requires a password, please"
+                                    " provide password for  %s@%s: " %
+                                    (self._user, self.name), stream=sys.stderr)
+            plen = chan.send(NodeConnection._password + '\n')
+            data = chan.recv(1024)
+            while chan.exit_status_ready() != True:
+                rl, wl, xl = select.select([chan],[],[],0.0)
+                data += chan.recv(1024)
+            self.stdout = io.StringIO(unicode(data))
+        else:
+            self.stdout = io.StringIO(unicode(prompt))
+
     def print_output(self, leader='', output=False):
         #FIXME: dshbak (leader) mode nott yet implemented correctly due to
         #       readline() returning a character at a time rather than a line.
@@ -67,7 +93,8 @@ class NodeConnection(object):
             return outbuf
 
 def runonnodes(nodespec, cmd, dshbak=False, verbose=False,
-               user=None, password=None, output=False):
+               user=None, password=None, output=False,
+               sudo=False):
     nodes = expand(nodespec)
 
     if len(nodes) == 0:
@@ -77,7 +104,10 @@ def runonnodes(nodespec, cmd, dshbak=False, verbose=False,
     for node in nodes:
         nc = NodeConnection(node, user, password)
         nc.connect(verbose=verbose)
-        nc.exec_command(cmd)
+        if sudo is False:
+            nc.exec_command(cmd)
+        else:
+            nc.exec_sudo_command(cmd)
         if not dshbak:
             print "--------------- %s ---------------" % (node)
             outbuf = nc.print_output(output=output)
